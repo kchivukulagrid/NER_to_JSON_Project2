@@ -40,6 +40,89 @@ def normalize_rows(rows: list[dict[str, str]]) -> list[dict[str, object]]:
     return normalized
 
 
+def read_json(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_json_validity_rows(root: Path) -> list[dict[str, object]]:
+    """Load json-validate-vs-temperature rows from CSV or fallback metrics JSON files."""
+    csv_path = root / "experiments/qwen2_5_1_5B_masked_tuned/json_validity_f1_experiment_results.csv"
+    rows = normalize_rows(read_csv(csv_path))
+    if rows:
+        return rows
+
+    exp = root / "experiments/qwen2_5_1_5B_masked_tuned"
+    fallback_map = {
+        "json_yes_temp_0p0": ("yes", 0.0, exp / "json_yes_temp_0p0_metrics.json"),
+        "json_yes_temp_0p1": ("yes", 0.1, exp / "json_yes_temp_0p1_metrics.json"),
+        "json_yes_temp_0p2": ("yes", 0.2, exp / "json_yes_temp_0p2_metrics.json"),
+        "json_no_temp_0p0": ("no", 0.0, exp / "json_no_temp_0p0_metrics.json"),
+        "json_no_temp_0p1": ("no", 0.1, exp / "json_no_temp_0p1_metrics.json"),
+        "json_no_temp_0p2": ("no", 0.2, exp / "json_no_temp_0p2_metrics.json"),
+    }
+
+    out: list[dict[str, object]] = []
+    for run_name, (validate, temp, path) in fallback_map.items():
+        data = read_json(path)
+        if not data:
+            continue
+        out.append(
+            {
+                "run_name": run_name,
+                "json_validate": validate,
+                "temperature": temp,
+                "precision": float(data.get("precision", 0.0)),
+                "recall": float(data.get("recall", 0.0)),
+                "f1": float(data.get("f1", 0.0)),
+                "validity": float(data.get("validity", 0.0)),
+                "total_examples": float(data.get("total_examples", 0.0)),
+                "valid_json_count": float(data.get("valid_json_count", 0.0)),
+                "repaired_json_count": float(data.get("repaired_json_count", 0.0)),
+            }
+        )
+    return out
+
+
+def load_format_cmp_rows(root: Path) -> list[dict[str, object]]:
+    """Load output-format comparison rows from CSV or fallback metrics JSON files."""
+    csv_path = root / "experiments/qwen2_5_1_5B_masked_tuned/fmt_format_comparison_temp_0p0_validate_yes.csv"
+    rows = normalize_rows(read_csv(csv_path))
+    if rows:
+        return rows
+
+    exp = root / "experiments/qwen2_5_1_5B_masked_tuned"
+    fallback_map = {
+        "json": exp / "fmt_j_yes_0p0_metrics.json",
+        "xml": exp / "fmt_x_yes_0p0_metrics.json",
+        "plain": exp / "fmt_p_yes_0p0_metrics.json",
+    }
+
+    out: list[dict[str, object]] = []
+    for fmt, path in fallback_map.items():
+        data = read_json(path)
+        if not data:
+            continue
+        out.append(
+            {
+                "format": fmt,
+                "run_name": f"fmt_{fmt}_yes_0p0",
+                "json_validate": "yes",
+                "temperature": 0.0,
+                "precision": float(data.get("precision", 0.0)),
+                "recall": float(data.get("recall", 0.0)),
+                "f1": float(data.get("f1", 0.0)),
+                "validity": float(data.get("validity", 0.0)),
+                "total_examples": float(data.get("total_examples", 0.0)),
+                "valid_json_count": float(data.get("valid_json_count", 0.0)),
+                "repaired_json_count": float(data.get("repaired_json_count", 0.0)),
+            }
+        )
+    return out
+
+
 def build_html(data: dict[str, list[dict[str, object]]]) -> str:
     payload = json.dumps(data, indent=2)
 
@@ -468,12 +551,8 @@ def build_html(data: dict[str, list[dict[str, object]]]) -> str:
 
 def main() -> None:
     data = {
-        "json_validity": normalize_rows(
-            read_csv(ROOT / "experiments/qwen2_5_1_5B_masked_tuned/json_validity_f1_experiment_results.csv")
-        ),
-        "format_cmp": normalize_rows(
-            read_csv(ROOT / "experiments/qwen2_5_1_5B_masked_tuned/fmt_format_comparison_temp_0p0_validate_yes.csv")
-        ),
+        "json_validity": load_json_validity_rows(ROOT),
+        "format_cmp": load_format_cmp_rows(ROOT),
         "gen_mode": normalize_rows(
             read_csv(ROOT / "experiments/qwen2_5_1_5B_masked_tuned/gen_mode_comparison_temp_0p0_validate_yes_format_json.csv")
         ),
