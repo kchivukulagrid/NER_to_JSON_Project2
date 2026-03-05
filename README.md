@@ -7,6 +7,15 @@ sdk_version: 6.6.0
 
 # NER JSON Studio: Fine-Tuned Qwen for Structured Entity Extraction
 
+<p align="center">
+  <img alt="Model" src="https://img.shields.io/badge/Model-Qwen2.5--1.5B-2563eb?style=for-the-badge">
+  <img alt="Method" src="https://img.shields.io/badge/Tuning-LoRA-7c3aed?style=for-the-badge">
+  <img alt="Best F1" src="https://img.shields.io/badge/Best%20F1-0.9066-059669?style=for-the-badge">
+  <img alt="JSON Validity" src="https://img.shields.io/badge/JSON%20Validity-100%25-f59e0b?style=for-the-badge">
+</p>
+
+> Production-safe setup: `json_validate=yes`, `temperature=0.1`, constrained generation, with_defs adapter.
+
 ## 📌 Project Overview
 This project builds a complete **NER to Structured JSON** pipeline using **Qwen2.5-1.5B + LoRA fine-tuning** on CoNLL-style data.
 
