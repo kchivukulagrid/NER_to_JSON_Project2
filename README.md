@@ -1,5 +1,5 @@
 ---
-title: Internship_project2
+title: NER_to_JSON_Project2
 app_file: app.py
 sdk: gradio
 sdk_version: 6.6.0
@@ -52,7 +52,7 @@ Target quality achieved:
 
 ## 📁 Project Structure
 ```text
-Internship_project2/
+NER_to_JSON_Project2/
 │── data/
 │   ├── raw/
 │   ├── processed/
