@@ -169,6 +169,44 @@ source venv/bin/activate
 
 ---
 
+## ⚡ Run On Another Computer (Quick Start)
+
+Use these exact commands on a fresh machine.
+
+### 1. Clone and enter project
+```bash
+git clone https://github.com/kchivukulagrid/NER_to_JSON_Project2.git
+cd NER_to_JSON_Project2
+```
+
+### 2. Create environment and install dependencies
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. Run UI directly (no retraining required)
+```bash
+python -m src.gradio_correction_app
+```
+
+### 4. Rebuild and open analytics dashboard
+```bash
+python scripts/build_plotly_dashboard.py
+open plots/index.html
+```
+
+### Notes for new users
+- If adapter files are present in `experiments/with_defs_qwen2_5_1_5B`, UI runs with your tuned model.
+- If adapter is missing, update `--adapter_path` when launching UI or keep your local adapter in the same path.
+- UI runtime exports are written to:
+  - `data/processed/active_learning/predictions_export.jsonl`
+  - `data/processed/corrections/corrections.jsonl`
+  - `data/processed/active_learning/cycle_records.jsonl`
+
+---
+
 ## 🏋️ Training & Inference
 
 ### Train
