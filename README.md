@@ -1,9 +1,3 @@
----
-title: NER JSON Studio
-app_file: app.py
-sdk: gradio
-sdk_version: 6.6.0
----
 
 # NER JSON Studio: Fine-Tuned Qwen for Structured Entity Extraction
 
