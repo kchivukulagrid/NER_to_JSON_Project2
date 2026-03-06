@@ -1,5 +1,5 @@
 ---
-title: NER_to_JSON_Project2
+title: NER JSON Studio
 app_file: app.py
 sdk: gradio
 sdk_version: 6.6.0
@@ -15,6 +15,7 @@ sdk_version: 6.6.0
 </p>
 
 > Production-safe setup: `json_validate=yes`, `temperature=0.1`, constrained generation, with_defs adapter.
+
 
 ## 📌 Project Overview
 This project builds a complete **NER to Structured JSON** pipeline using **Qwen2.5-1.5B + LoRA fine-tuning** on CoNLL-style data.
