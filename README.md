@@ -11,6 +11,40 @@
 > Production-safe setup: `json_validate=yes`, `temperature=0.1`, constrained generation, with_defs adapter.
 
 
+## 📌 Project Overview
+This project builds a complete **NER to Structured JSON** pipeline using **Qwen2.5-1.5B + LoRA fine-tuning** on CoNLL-style data.
+
+The system is designed to:
+- extract entities from raw text,
+- output clean schema-constrained JSON,
+- compare decoding and data-prep strategies,
+- support human correction + active learning with Gradio.
+
+Target quality achieved:
+- **F1 > 85%**
+- **JSON validity = 100%** on key runs
+
+---
+
+## 🚀 Features
+- **LoRA Fine-Tuning** of `Qwen/Qwen2.5-1.5B`
+- **Structured JSON extraction** with schema normalization
+- **Experiment sweeps**:
+  - JSON validation yes/no
+  - temperature (0.0 / 0.1 / 0.2)
+  - output format (JSON / XML / plain)
+  - generation mode (free / constrained)
+  - data prep variants (with_defs / no_defs / syn_aug)
+- **Gradio UI** for:
+  - extraction,
+  - correction,
+  - active-learning export,
+  - analytics dashboard
+- **Active learning artifacts** persisted to JSONL
+- **Plot dashboard** for reviewer presentation
+
+---
+
 ## 🏗️ Installation & Setup
 
 ### Prerequisites
@@ -67,39 +101,6 @@ open plots/index.html
 
 ---
 
-## 📌 Project Overview
-This project builds a complete **NER to Structured JSON** pipeline using **Qwen2.5-1.5B + LoRA fine-tuning** on CoNLL-style data.
-
-The system is designed to:
-- extract entities from raw text,
-- output clean schema-constrained JSON,
-- compare decoding and data-prep strategies,
-- support human correction + active learning with Gradio.
-
-Target quality achieved:
-- **F1 > 85%**
-- **JSON validity = 100%** on key runs
-
----
-
-## 🚀 Features
-- **LoRA Fine-Tuning** of `Qwen/Qwen2.5-1.5B`
-- **Structured JSON extraction** with schema normalization
-- **Experiment sweeps**:
-  - JSON validation yes/no
-  - temperature (0.0 / 0.1 / 0.2)
-  - output format (JSON / XML / plain)
-  - generation mode (free / constrained)
-  - data prep variants (with_defs / no_defs / syn_aug)
-- **Gradio UI** for:
-  - extraction,
-  - correction,
-  - active-learning export,
-  - analytics dashboard
-- **Active learning artifacts** persisted to JSONL
-- **Plot dashboard** for reviewer presentation
-
----
 
 ## 📁 Project Structure
 ```text
