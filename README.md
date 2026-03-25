@@ -50,10 +50,21 @@ Target quality achieved:
 ### Prerequisites
 - Python 3.10+
 - macOS/Linux (MPS/CUDA/CPU supported via PyTorch setup)
+- Git LFS (required to pull tracked model artifacts under `models/`)
+
+### One-time Git LFS setup (per machine)
+```bash
+git lfs install
+```
 
 ### Install dependencies
 ```bash
 pip install -r requirements.txt
+```
+
+### Pull LFS-tracked model files (after clone)
+```bash
+git lfs pull
 ```
 
 ### Activate venv (recommended)
@@ -78,6 +89,8 @@ cd NER_to_JSON_Project2
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+git lfs install
+git lfs pull
 ```
 
 ### 3. Run UI directly (no retraining required)
