@@ -72,6 +72,14 @@ git lfs pull
 source venv/bin/activate
 ```
 
+### Reproducibility Notes
+- Recommended Python version: `3.11`
+- After cloning, run `git lfs install` and `git lfs pull`
+- `llama.cpp` is required only for Task 5 quantization and GGUF benchmarking
+- Tasks 1-4 and the Gradio UI do not require `llama.cpp`
+- Fine-tuning for this project was run on Apple Silicon using the PyTorch `MPS` accelerator
+- All reported metrics and comparisons are traceable to files under `experiments/`
+
 ---
 
 ## ⚡ Run On Another Computer (Quick Start)
@@ -95,6 +103,8 @@ git lfs pull
 
 If `outlines_core` fails to build (usually on Python `3.13+`/`3.14`), use Python `3.11` for this project.  
 Alternative (if you must keep Python `3.14`): install Rust first, then reinstall deps.
+
+`llama.cpp` is only required for Task 5 quantization and GGUF benchmarking. Tasks 1-4 and the Gradio UI do not depend on it.
 
 ### 3. Run UI directly (no retraining required)
 ```bash
@@ -148,7 +158,7 @@ NER_to_JSON_Project2/
 ├── models/
 │   ├── gguf/
 │   └── hf/
-├── llama.cpp/
+├── llama.cpp/                     # optional local clone for Task 5; not committed
 ├── plots/
 │   └── index.html
 ├── scripts/
@@ -180,28 +190,28 @@ NER_to_JSON_Project2/
 
 ---
 
-## ✅ Project_2 Tasks
+## ✅ Project 3 Tasks
 
 ### 🔹 Task 1: Constrained Decoding for Structured NER
-- Train LoRA for strict JSON schema output with offsets/confidence.
-- Compare free vs constrained decoding quality and latency.
+- Train a LoRA adapter for strict JSON output with offsets and confidence.
+- Compare free vs constrained decoding on validity, F1, and latency overhead.
 
 ### 🔹 Task 2: Layer-wise Entity Type Importance
-- Run logit-lens + per-layer ablation.
-- Identify critical layers and evaluate selective LoRA placement.
+- Run logit-lens and per-layer ablation for `PER`, `ORG`, `LOC`, and `MISC`.
+- Identify critical layers and evaluate selective LoRA against full-layer LoRA.
 
 ### 🔹 Task 3: Boundary Steering (Gemma 2B)
-- Extract activations on strict vs loose boundary sets (layers 12-16).
-- Compute/apply steering vectors and evaluate boundary F1 tradeoffs.
+- Extract strict vs loose boundary activations from Gemma `2B` layers `12-16`.
+- Apply steering vectors at inference time and measure exact-span boundary F1.
 
 ### 🔹 Task 4: Adversarial Robustness
-- Create adversarial categories (nested, abbrev, misspell, ambiguous, multilingual).
-- Train with mixed original+adversarial data and compare pre/post robustness.
+- Create nested, abbreviation, misspelling, ambiguous, and multilingual adversarial cases.
+- Retrain on mixed original+adversarial data and compare pre/post robustness by category.
 
 ### 🔹 Task 5: Production Profiling & Quantization
-- Profile inference memory.
-- Benchmark Q4/Q5/Q8 quantizations for latency, memory, and F1.
-- Measure concurrency (1/4/8/16) with p50/p95/p99 and throughput.
+- Profile inference memory to separate weight cost from activation cost.
+- Benchmark `Q4_K_M`, `Q5_K_M`, and `Q8_0` for latency, memory, validity, and F1.
+- Measure concurrency (`1/4/8/16`) and tuned server runs for SLA-oriented deployment.
 
 ---
 
@@ -225,6 +235,38 @@ Source: `experiments/data_prep_comparison/data_prep_test_compare.csv`
 ### Generation mode comparison (validation)
 Source: `experiments/qwen2_5_1_5B_masked_tuned/gen_mode_comparison_temp_0p0_validate_yes_format_json.csv`
 - constrained generation outperforms free generation
+
+---
+
+## 🎯 Success Criteria & Insight
+
+### Project 2
+
+Success Criteria:
+- Identify a decoding setup that preserves high F1 while avoiding repaired or invalid outputs.
+- Show whether constrained generation is better than free generation under the same configuration.
+- Demonstrate whether prompt/data preparation materially changes final extraction quality.
+
+Insight:
+- The strongest Project 2 setup is built from three combined decisions rather than a single model change: `json_validate=yes`, constrained generation, and the `with_defs` data variant.
+- The most production-safe operating point is `yes + 0.1`, while the strongest Project 2 test result comes from `with_defs`, which raises test F1 to **0.9066**.
+- The project shows that decoding strategy and data design are first-order levers for structured NER quality, not just post-training details.
+
+### Project 3
+
+Success Criteria:
+- Task 1 should quantify the cost and value of constrained decoding for strict JSON outputs.
+- Task 2 should identify entity-type-specific critical layers and test whether selective LoRA retains most of full-layer quality.
+- Task 3 should show whether activation steering can influence entity boundaries without retraining.
+- Task 4 should measure adversarial robustness and verify whether mixed adversarial training improves held-out results.
+- Task 5 should benchmark quantization and concurrency, identify the memory bottleneck, and recommend a deployable SLA-safe serving profile.
+
+Insight:
+- Task 1 confirms that strict JSON generation can be guaranteed, but at a meaningful latency cost when constraints are enforced.
+- Task 2 shows that layer importance is not uniform across entity types; `ORG` and `MISC` emerge earlier, while `PER` and `LOC` rely more on later layers.
+- Task 3 is instruction-complete, but the observed steering effect is weak in the tested range, so the tradeoff claim is only partially supported.
+- Task 4 provides the clearest robustness gain, especially for multilingual, ambiguous, and nested cases after adversarial retraining.
+- Task 5 is the strongest production result: model weights dominate memory usage, and the tuned `Q4_K_M` server profile meets the `<500 ms` p95 SLA.
 
 ---
 
@@ -254,68 +296,6 @@ python -m src.evaluation \
 
 ---
 
-## 🧪 Experiment Commands
-
-### 1. Parameters Experiment (JSON Validate + Temperature)
-Purpose: compare `json_validate` (`yes/no`) across temperatures `0.0`, `0.1`, `0.2`.
-
-```bash
-bash scripts/run_json_validity_f1_experiments.sh
-```
-
-Primary output:
-- `experiments/qwen2_5_1_5B_masked_tuned/json_validity_f1_experiment_results.csv`
-
-### 2. Architecture Experiment: Output Format (JSON vs XML vs plain)
-Purpose: compare output format behavior under one fixed decoding setup.
-Recommended fixed setup: `--temperature 0.0 --json_validate yes`
-
-```bash
-bash scripts/run_format_comparison_and_csv.sh \
-  --temperature 0.0 \
-  --json_validate yes
-```
-
-Primary output:
-- `experiments/qwen2_5_1_5B_masked_tuned/fmt_format_comparison_temp_0p0_validate_yes.csv`
-
-### 3. Architecture Experiment: Generation Mode (Constrained vs Free)
-Purpose: compare decoding strategy while keeping format/config fixed.
-Recommended fixed setup: `--temperature 0.0 --json_validate yes --output_format json`
-
-```bash
-bash scripts/run_generation_mode_comparison_and_csv.sh \
-  --temperature 0.0 \
-  --json_validate yes \
-  --output_format json
-```
-
-Primary output:
-- `experiments/qwen2_5_1_5B_masked_tuned/gen_mode_comparison_temp_0p0_validate_yes_format_json.csv`
-
-### 4. Data Prep Experiment (with_defs vs no_defs vs syn_aug)
-Purpose: compare prompt/data variants after short retraining + evaluation.
-
-```bash
-bash scripts/run_data_prep_comparison_and_csv.sh \
-  --epochs 2 \
-  --generation_mode constrained \
-  --temperature 0.0 \
-  --json_validate yes
-```
-
-Primary outputs:
-- `experiments/data_prep_comparison/data_prep_comparison_temp_0p0_mode_constrained.csv`
-- `experiments/data_prep_comparison/data_prep_test_compare.csv`
-
-### Suggested Order (for reproducible reporting)
-1. `run_json_validity_f1_experiments.sh`
-2. `run_format_comparison_and_csv.sh`
-3. `run_generation_mode_comparison_and_csv.sh`
-4. `run_data_prep_comparison_and_csv.sh`
-
----
-
 ## 🧪 Project 3 — Detailed Task Reports
 
 ### Task 1: Constrained Decoding for Structured NER
@@ -323,6 +303,9 @@ Primary outputs:
 Explanation: This task checks whether schema-aware decoding improves structured NER outputs enough to justify the added inference cost.
 
 Objective: train a LoRA adapter that emits strict JSON with character offsets and confidence, then compare constrained vs free decoding on quality, validity, and latency.
+
+Schema:
+`{"entities":[{"type","value","start","end"}], "confidence": float}`
 
 Implementation:
 - Dataset preparation, LoRA training, constrained decoding, inference, and benchmarking are implemented in `src/tasks/task1_constrained/`.
@@ -350,6 +333,9 @@ Interpretation:
 Explanation: This task analyzes which transformer layers matter most for different entity types and whether those insights can reduce LoRA training cost.
 
 Objective: identify which transformer layers matter most for each entity type and test whether selective LoRA can preserve most of the full-model performance.
+
+Entity types analyzed:
+`PER`, `ORG`, `LOC`, `MISC`
 
 Implementation:
 - Logit-lens, early-vs-late analysis, per-layer ablation, critical-layer extraction, and selective LoRA training are implemented in `src/tasks/task2_layer_importance/`.
@@ -398,6 +384,10 @@ Explanation: This task tests whether entity-boundary behavior can be adjusted at
 
 Objective: test whether activation steering can push generation toward stricter entity boundaries without retraining.
 
+Setup:
+- Activations extracted for `300` examples with precise vs loose boundaries.
+- Steering applied at scales `0.5`, `1.0`, and `1.5` on layers `12-16`.
+
 Model choice:
 - This task uses `google/gemma-2-2b`, not the Qwen model from Tasks 1, 2, 4, and 5.
 - The intent is to probe whether boundary-control signals exist in activation space even without task-specific fine-tuning.
@@ -438,6 +428,10 @@ Explanation: This task evaluates how the extractor behaves under noisy or mislea
 
 Objective: evaluate how the model behaves under adversarial entity perturbations and measure whether mixed adversarial training improves robustness.
 
+Evaluation design:
+- `100` original + `100` adversarial examples for pre-training analysis.
+- Held-out adversarial comparison after `2` epochs of mixed retraining.
+
 Implementation:
 - Adversarial dataset generation, training, evaluation, and result comparison are implemented in `src/tasks/task4_adversarial/`.
 - Categories include nested entities, abbreviations, misspellings, ambiguous boundaries, and multilingual noise.
@@ -466,6 +460,11 @@ Interpretation:
 Explanation: This task converts the model from an experimental system into a deployment-oriented service by measuring memory, quality, latency, and concurrency tradeoffs.
 
 Objective: quantify the tradeoff between model size, latency, quality, and concurrency, then produce a deployable configuration that satisfies a strict latency target.
+
+Scope:
+- Memory profiling with HuggingFace/PyTorch tooling.
+- Quantized inference with `llama.cpp`.
+- Full-test-set benchmarking on CoNLL2003 plus concurrency and SLA analysis.
 
 Implementation:
 - Memory profiling, quantized benchmarking, and concurrency testing are implemented in `src/tasks/task5_production/`.
@@ -530,7 +529,90 @@ Interpretation:
 
 ---
 
-## 🧰 Project3 Task 5 Reproducibility Notes (llama.cpp + LFS)
+
+---
+
+## 🧪 Experiments
+
+This section groups the reproducible Project 2 experiment runs used to compare decoding settings, output formats, generation modes, and data-preparation variants. Each command writes structured CSV outputs under `experiments/` so the reported conclusions can be traced back to exact runs.
+
+### 1. Parameters Experiment (JSON Validate + Temperature)
+Purpose: compare `json_validate` (`yes/no`) across temperatures `0.0`, `0.1`, `0.2`.
+
+Analysis:
+- This experiment identifies the most stable decoding setup for structured JSON extraction.
+- In the current runs, validation F1 peaks around `0.9064`, and the most production-safe setting is `json_validate=yes` with `temperature=0.1` because it preserves strong F1 while avoiding repaired outputs.
+
+```bash
+bash scripts/run_json_validity_f1_experiments.sh
+```
+
+Primary output:
+- `experiments/qwen2_5_1_5B_masked_tuned/json_validity_f1_experiment_results.csv`
+
+### 2. Architecture Experiment: Output Format (JSON vs XML vs plain)
+Purpose: compare output format behavior under one fixed decoding setup.
+Recommended fixed setup: `--temperature 0.0 --json_validate yes`
+
+Analysis:
+- This experiment checks whether schema-friendly output formats help extraction quality and post-processing reliability.
+- The main use here is architectural comparison: JSON is the intended production target because it aligns with downstream parsing and evaluation, while XML/plain are reference baselines.
+
+```bash
+bash scripts/run_format_comparison_and_csv.sh \
+  --temperature 0.0 \
+  --json_validate yes
+```
+
+Primary output:
+- `experiments/qwen2_5_1_5B_masked_tuned/fmt_format_comparison_temp_0p0_validate_yes.csv`
+
+### 3. Architecture Experiment: Generation Mode (Constrained vs Free)
+Purpose: compare decoding strategy while keeping format/config fixed.
+Recommended fixed setup: `--temperature 0.0 --json_validate yes --output_format json`
+
+Analysis:
+- This experiment measures whether constrained generation improves structured extraction quality over free decoding.
+- In the validation comparison, constrained generation outperforms free generation, which supports the use of constrained decoding in the final setup.
+
+```bash
+bash scripts/run_generation_mode_comparison_and_csv.sh \
+  --temperature 0.0 \
+  --json_validate yes \
+  --output_format json
+```
+
+Primary output:
+- `experiments/qwen2_5_1_5B_masked_tuned/gen_mode_comparison_temp_0p0_validate_yes_format_json.csv`
+
+### 4. Data Prep Experiment (with_defs vs no_defs vs syn_aug)
+Purpose: compare prompt/data variants after short retraining + evaluation.
+
+Analysis:
+- This experiment tests whether changing prompt context and training data structure improves final NER extraction quality.
+- The strongest result comes from `with_defs`, which lifts test F1 from the baseline `0.8837` to `0.9066`, showing that adding type definitions materially improves extraction performance.
+
+```bash
+bash scripts/run_data_prep_comparison_and_csv.sh \
+  --epochs 2 \
+  --generation_mode constrained \
+  --temperature 0.0 \
+  --json_validate yes
+```
+
+Primary outputs:
+- `experiments/data_prep_comparison/data_prep_comparison_temp_0p0_mode_constrained.csv`
+- `experiments/data_prep_comparison/data_prep_test_compare.csv`
+
+### Suggested Order (for reproducible reporting)
+1. `run_json_validity_f1_experiments.sh`
+2. `run_format_comparison_and_csv.sh`
+3. `run_generation_mode_comparison_and_csv.sh`
+4. `run_data_prep_comparison_and_csv.sh`
+
+---
+
+## 🧰 Project 3 Task 5 Reproducibility Notes (llama.cpp + LFS)
 
 ### Why `llama.cpp`
 `llama.cpp` is used in Task 5 to convert/quantize GGUF models and run low-level quantized inference benchmarks.
@@ -555,16 +637,12 @@ cmake --build build -j
 ### Git LFS setup (for model artifacts)
 ```bash
 git lfs install
-git lfs track "models/**/*.gguf"
-git lfs track "models/**/*.safetensors"
-git lfs track "models/**/*.bin"
-git add .gitattributes
-```
-
-### Pull LFS files after clone
-```bash
 git lfs pull
 ```
+
+Maintainer note:
+- `.gitattributes` in this repo already tracks the required large model artifacts.
+- New users only need `git lfs install` and `git lfs pull`; they do not need to run `git lfs track`.
 
 ---
 
